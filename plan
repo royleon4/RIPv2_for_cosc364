@@ -1,0 +1,34 @@
+
+
+1. Response messages
+    regular update
+    triggered update
+2. 
+
+
+Control flow
+- initialization (binding sockets...)
+- sending information (share own routing table)
+- update information
+- 
+
+
+Look at here:
+    -This folder contains a python file (two classes and the logic flow of simplified RIPv2)
+    -7 config files
+    -one runnable sh file
+
+instruction:
+    1. Open a termial to this folder and excute the following command:
+        . Ult.sh
+    2. RIPv2 will start running with following updates:
+        * 5 seconds periodic update
+            -Sharing information when startup
+            -Deleting entries
+            -Add new entries
+        * 30 seconds timeout after a neighbour stops sending updates
+        * (After the Timeout) 20 seconds garbage collector timeout for entries recoveries
+    3. Entries that are dropped and deleted from the table, can still be recovered by thier corresponding   commands
+    4. Try delete and add back on any routers
+
+
