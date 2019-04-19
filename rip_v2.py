@@ -6,17 +6,32 @@ Routing Information Protocol
 
 import sys
 import re
-import os
+
+import time
+import random
+
+import socket
+import select
 
 
 input_ports = []
 output_ports = dict()
 router_id = 0
+loop = 0
+table = {}
+infinity = 16
+
+#CONSTANTS
+#TIMERS_FOR_RIPv2 = [30, 180, 120]
+UPDATE = 30 / 6
+TIMEOUT = 180 / 6
+TIMEOUT_GARBAGE = 120 / 6
 
 
 def domain_check(value, mini, maxi):
     
     """
+    check if a number is inside a specific range
     """
     return value >= mini and value <= maxi
     
@@ -38,12 +53,11 @@ def syntax_check(config_data):
         
         #this can handle white trailing spaces with a correct format and
         #ignore lines with ugly trailing caharacters
-        #print("line  ", line)
         entry = [value.strip() for value in line.split(",")]
         key, values = entry[0], entry[1:]
 
         if re.match(format_check.get(key, ""), line):
-            
+
             if key == entry_keys[0] and domain_check(int(entry[1]), 1, 64000):
                 router_id = entry[1]
                 
@@ -102,12 +116,34 @@ def syntax_check(config_data):
 
 
 
+
+def show_table():
+    print("Loop:\n", loop)
+    print("| ID   | via |metric| time  | message            ")
+    print(" ------------------------------------------------>")
+    for key, value in output_ports.items():
+        print("|{:^6}|{:^5}|{:^6}|{:^7}|{:^20}".format(key, value[1], value[0], "", "directly connected"))
+
+
+def init_router():
+    list_listening = []
+    for port in input_ports:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind((host, port))
+        list_listening.append(sock)
+    
+    
+
 def main_program(file_name):
     """the main RIPv2 program, logistics"""
     file_object=open(file_name, 'r')
     if not syntax_check(file_object):
         print("Invalid file supplied.")
         exit(1)
+    show_table()
+    #init_router()
+    
+    
         
 
 
