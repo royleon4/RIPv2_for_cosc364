@@ -9,8 +9,6 @@ import threading
 import socket, select
 import pickle, struct
 
-
-
 input_ports = []
 output_ports = {}
 router_id, loop = 0, 0
@@ -29,19 +27,17 @@ HOST = "127.0.0.1"
 
 
 
-def domain_check(value, mini, maxi):
-    
+def domain_check(value, mini, maxi): #Check a number is within the domain
     """
     check if a number is inside a specific range
     """
     if not int(value) >= mini and int(value) <= maxi:
         print("The number", value, "does not reside between", mini, "and", maxi)
         exit(1)
-    
     return int(value) >= mini and int(value) <= maxi
     
 
-def syntax_check(config_data):
+def syntax_check(config_data): #Check the config file contain valid data
     """
     checks the router_id is within the range[1-64000],
     and the port number is within range[1024, 64000]
@@ -53,16 +49,16 @@ def syntax_check(config_data):
     local_table = dict()
     
     for line in entries:
-        #print(line)
+
         entry = [value.strip() for value in line.split(",")]
         key, values = entry[0], entry[1:]
         local_table[key] = values
         
         if not re.match(format_check, line):
-            #print(line)
+
             print("invalid format:\n",line)
 
-        #print("passed:", line)
+
     #####################################################
     ##CHECK REQUIRED iNFO ARE GIVEN######################
     entry_keys = ["router-id", "input-ports", "output-ports"]
@@ -76,14 +72,10 @@ def syntax_check(config_data):
     ##CHECK NUMBERS ARE INSIDE THE DOMAIN################
     ##ALSO SAVE INFO IF ALL CORRECT######################
     routes = [list(map(int, item.split("-"))) for item in local_table["output-ports"]] #convert to int
-    #input_ports = [int(number) for number in local_table["input-ports"]]
     for number in local_table["input-ports"]:
         input_ports.append(int(number))
     
-    
-    #print("loca: ", input_ports)
-    
-    #print("rids=",routes)
+
     for route in routes:
         oport = route[0]
         metric = route[1]
@@ -98,95 +90,17 @@ def syntax_check(config_data):
         output_ports[oport] = [metric, dest]
         neighbors.append(dest)
         
-        
-    #print(local_table["router-id"])
+
     domain_check(local_table["router-id"][0], 1, 64000)
     global router_id
     router_id = int(local_table["router-id"][0])
-    #os.environ["router_id"] = int(local_table["router-id"][0])
+
     #####################################################
-    #print("iport:",input_ports)
+
     return 1
-        
-    
-    
-    
-    
-    
-    #error = 0
-    #entry_keys = ["router-id", "input-ports", "output-ports"]
-    #
-    #format_check = dict()
-    #format_check["router-id"] = r"\w+-\w+(,[ ]*[0-9]+)[ ]*\Z"
-    #format_check["input-ports"] = r"\w+-\w+(,[ ]*[0-9]+)+[ ]*\Z"
-    #format_check["output-ports"] = r"\w+-\w+(,[ ]*[0-9]+-[0-9]+-[0-9]+)+[ ]*\Z"
-
-    #for line in entries:
-        
-        ##this can handle white trailing spaces with a correct format and
-        ##ignore lines with ugly trailing caharacters
-        #entry = [value.strip() for value in line.split(",")]
-        #key, values = entry[0], entry[1:]
-
-        #if re.match(format_check.get(key, ""), line):
-
-            #if key == entry_keys[0] and domain_check(int(entry[1]), 1, 64000):
-                #router_id = entry[1]
-                
-            #elif key == entry_keys[1]:
-                #for number in values:
-                    #num = int(number)
-                    #if not domain_check(int(entry[1]), 1024, 64000):
-                        #print("input port should reside in [1024, 64000].")
-                        #exit(1)
-                    #input_ports.append(num)
-                    
-                    
-            #elif key == entry_keys[2]:
-                #for num in values:
-                    #digits = [int(number) for number in num.split("-")]
-                    #if not (domain_check(digits[0], 1, 64000) and \
-                       #domain_check(digits[1], 1, 16) and \
-                       #domain_check(digits[2], 1, 64000)):
-                        #print("output port should reside in [1024, 64000]. router id should reside in [1, 64000]")
-                        #exit(1)
-                    #output_ports[digits[0]] = [digits[1], digits[2]]
-            #else:
-                
-                ##print("undesired information given, shown below.\n", line)
-                #pass
-                        
-                    
-        #else:
-            #print("Error: Invalid format,\nplease use the following format:\n"
-                  #"router-id, {%d}"
-                  #"input-ports, {%d}, {%d}, {%d}"
-                  #"output-ports, {%d}-{%d}-{%d}"
-                  #"/plus: numbers should all be positive. ")
-            #error = 1
-            
-
-    #if router_id == 0:
-        #print("invalid router_id")
-        #error = 1
-    #if len(input_ports) == 0:
-        #print("no input ports supplied")
-        #error = 1
-
-    #if len(output_ports) == 0:
-        #print("no output ports supplied")
-        #error = 1
-    #for key in output_ports.keys():
-        #if key in input_ports:
-            #print("output port should not be the same with input port")
-            #error = 1
-
-    #if error: exit(1)
-
-    #return 1
 
 
-def init_table():
+def init_table(): #initialize the initial table given by config files
     print(output_ports)
     for item in output_ports.values():
         #print("dsafds", item)
@@ -195,7 +109,15 @@ def init_table():
         metric = item[0]
         table[dest] = [via, metric, 0.00, "directly connected"]
 
-def show_table():
+
+
+def init_router(): #Initialize router, bind to input ports
+    for port in input_ports:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.bind((HOST, port))
+        listen_list.append(sock)
+
+def show_table(): #Show table on the terminal
     #print("|\/|\/|\/|\/|\/|\/|\/|\/|\/|\/|\/|\/|\/|\/|\/|\/|")
     print("{:^49}".format("ROUTER_ID: " + str(router_id)))
     print("\nLoop:", loop)
@@ -206,33 +128,8 @@ def show_table():
         print("|{:^6}|{:^5}|{:^6}|{:^7.3f}|{:^20}".format(key, value[0], value[1], value[2], value[3]))
     print("|\/|\/|\/|\/|\/|\/|\/|\/|\/|\/|\/|\/|\/|\/|\/|\/|\n")
 
-
-def init_router():
-    #print(input_ports)
-    for port in input_ports:
-        #print(port)
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind((HOST, port))
-        listen_list.append(sock)
-
-def is_valid_pack(packet):
-    ## the metric is not greater than 16
-    for i in ["ver", "id", "data"]:
-        if i not in packet:
-            return False
-    if packet["ver"] == 2 and len(packet["id"]) == 2\
-       and type(packet["data"]) == type(dict()):
-        return True
-    return False
-
-def trigger_update():
-    send_message()
-    
-
-def update_table(pack):
+def update_table(pack): #Unpack packet and load entries to the table
     from_id = struct.unpack("H", pack["id"])[0]
-    #print(from_id)
-    #updating the neighbor first
     if from_id in table:
         table[from_id][3] = "regular update"
         table[from_id][2] = 0         
@@ -240,21 +137,16 @@ def update_table(pack):
     else:
         details = [from_id, pack["metric"], 0, "new neighbor"]
         table[from_id] = details
-        neighbors.append(from_id)
+        #neighbors.append(from_id)
              
         
     for dest, distance in pack["data"].items():
-        #print("in update table:", dest)
-        #print("table:", table)
-        
-        #print("dest:", dest)
-        #print("tb:", table)
         new_metric = min(distance + table[from_id][1], INFINITY)
         if dest in table:
-            if new_metric < INFINITY and dest not in neighbors:   
+            if new_metric < INFINITY:   
                 metric = table[dest][1]
-                if new_metric < metric:
-                    table[dest][1] = min(new_metric, INFINITY)
+                if new_metric < metric and dest not in neighbors:
+                    table[dest][1] = new_metric
                     table[dest][0] = from_id
                     table[dest][3] = "metric updated"
                     table[dest][2] = 0
@@ -263,21 +155,23 @@ def update_table(pack):
                     table[dest][2] = 0
                         
             else:
+                #if table[dest][0] == from_id:
                 if table[dest][0] == from_id:
                     table[dest][2] = max(table[dest][2], TIMEOUT)
-                    if table[dest][1] != INFINITY:
+                    
+                    if table[dest][1] == INFINITY and dest in neighbors:
+                        table[dest][2] == GARBAGE
+                    else:
                         table[dest][1] == INFINITY
-                        send_message()
-                        time.sleep(0.2)  
+                        trggered(from_id)
         else:
-            if new_metric < INFINITY:
-                #details = [from_id, new_metric, 0, "newly created"]
+            if new_metric < INFINITY and dest not in neighbors:
                 table[dest] = [from_id, new_metric, 0, "newly created"]
             
         
     pass
 
-def refresh_table():
+def refresh_table():  #Refresh the table, keep track of timers of each entry
     to_remove = []
     start = time.time()
     time.sleep(random.uniform(0.8, 0.2))
@@ -295,102 +189,115 @@ def refresh_table():
         elif time_recorded >= TIMEOUT:
             table[key][3] = "Invalid"
             table[key][1] = INFINITY
+            send_message()
             
     
     for key in to_remove:
         table.pop(key)
-        if key in neighbors:
-            neighbors.remove(key)
-            
-        #output_ports.pop(key)
+        #if key in neighbors:
+            #neighbors.remove(key)
+
+
+def recieve_msg(timeout): 
+    #Recieve paccket from other connected routers
+    
+    def is_valid_pack(packet): #Check if packet recievedis valid
+        ## the metric is not greater than 16
+        for i in ["ver", "id", "data"]:
+            if i not in packet:
+                return False
+        if packet["ver"] == 2 and len(packet["id"]) == 2\
+           and type(packet["data"]) == type(dict()):
+            return True
+        return False
+
         
-
-
-def recieve_msg(timeout):
     readable,write,error = select.select(listen_list,[],[], timeout)
     print("received packs:\n")
     for recieved in readable:
-        #recieved.settimeout(10)
         data, addr = recieved.recvfrom(1024)
-        #print(data)
         pack = pickle.loads(data)
-        #print("received:", pack)
         if is_valid_pack(pack):
             
             print(pack)
             update_table(pack)
     print("=================================")
-        
-        
-    pass
 
 
-def create_pack(dest_id, port):
+
+def create_pack(dest_id, port, version):  #create a packet to send out, split horizon, poison reverse
     pack = {}
-    #print("TABLE:", table)
     pack["ver"] = 2
     pack["id"] = struct.pack("H", router_id)
     pack["metric"] = output_ports[port][0]
-    #pack["from_id"] = router_id
-    #print("dfdgs", struct.unpack("H",  pack["id"]))
     pack["data"] = {}
     for dest, item in table.items():
         via = item[0]
         metric = item[1]
-        if (not via == dest_id and dest != dest_id) or\
-           metric == INFINITY:
-            pack["data"][dest] = item[1]
+        if version == 1:
+            if via != dest_id and dest != dest_id:
+                pack["data"][dest] = item[1]
+        elif version == 2:
+            if dest != dest_id:
+                pack["data"][dest] = item[1]
     return pack
 
+def trggered(send_to):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    port = 0
+    for key, value in output_ports.items():
+        print(send_to, value[1])
+        if value[1] == send_to:
+            
+            port = key
+            print(port)
+    if port == 0:
+        print("WRONG PORT!", port,key, output_ports.items())
+        exit(1)
+    pack = create_pack(send_to, port, 2)
+    packet = pickle.dumps(pack, protocol=2)
+    sock.sendto(packet, (HOST, port))    
 
-
-def send_message():
-
+def send_message(): #send packet to neighbors
+    
+        
+    
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
     for port in output_ports.keys():
         send_to = output_ports[port][1]
-        pack = create_pack(send_to, port)
+        pack = create_pack(send_to, port, 1)
         packet = pickle.dumps(pack, protocol=2)
         sock.sendto(packet, (HOST, port))
 
-def exchange_info():
+def exchange_info(): #Handling sending and receiving timers, regular update
     def regular_update():
         while 1:
             interval = random.uniform(UPDATE*0.8, UPDATE*0.2)
             time.sleep(interval)
             send_message()
         
-        
-    regu_upda = threading.Thread(target = regular_update)
-    regu_upda.start()
-    
+    threading.Thread(target = regular_update).start()
+
     global loop
     while 1:
-        #time.sleep(2)
         loop += 1
-        
         refresh_table()
         show_table()
-        #
-        recieve_msg(UPDATE) #timeout is 5 seconds
+        recieve_msg(UPDATE)
         
         
-def main_program(file_name):
+        
+def main_program(file_name): #Handling the main logistics
     """the main RIPv2 program, logistics"""
     file_object=open(file_name, 'r')
     if not syntax_check(file_object):
         print("Invalid file supplied.")
         exit(1)
     init_table()
-
-    print(table)
-    #print("iport:",input_ports)
     init_router()
     exchange_info()
     
-
-
 if __name__ == "__main__":
     n_args = (len(sys.argv))
     #print(sys.argv)
