@@ -152,6 +152,7 @@ def update_table(pack): #Unpack packet and load entries to the table
                     table[dest][2] = 0
                 elif table[dest][0] == from_id:
                     table[dest][3] = "regular update"
+                    table[dest][1] = new_metric
                     table[dest][2] = 0
                         
             else:
