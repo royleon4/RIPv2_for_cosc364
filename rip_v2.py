@@ -8,7 +8,7 @@ import sys, re, time, random
 import threading
 import socket, select
 import pickle, struct
-
+print_packs = False
 input_ports = []
 output_ports = {}
 router_id, loop = 0, 0
@@ -22,6 +22,7 @@ neighbors = []
 UPDATE = 30 / 30
 TIMEOUT = (180) / 30 + UPDATE
 GARBAGE = (120) / 30 + TIMEOUT
+
 INFINITY = 16
 HOST = "127.0.0.1"
 
@@ -131,30 +132,35 @@ def show_table(): #Show table on the terminal
 def update_table(pack): #Unpack packet and load entries to the table
     from_id = struct.unpack("H", pack["id"])[0]
     if from_id in table:
-        table[from_id][3] = "regular update"
+        table[from_id][3] = "regular update (neighbor)"
+        if table[table[from_id][0]][1] == INFINITY:
+            table[from_id][0] = from_id
+            table[from_id][1] = pack["metric"]
         table[from_id][2] = 0         
         
     else:
         details = [from_id, pack["metric"], 0, "new neighbor"]
         table[from_id] = details
-
+        #neighbors.append(from_id)
+             
         
     for dest, distance in pack["data"].items():
         new_metric = min(distance + table[from_id][1], INFINITY)
         if dest in table:
             if new_metric < INFINITY:   
                 metric = table[dest][1]
-                if new_metric < metric and dest not in neighbors:
+                if new_metric < metric:
                     table[dest][1] = new_metric
                     table[dest][0] = from_id
                     table[dest][3] = "metric updated"
                     table[dest][2] = 0
                 elif table[dest][0] == from_id:
-                    table[dest][3] = "regular update"
+                    table[dest][3] = "regular update (non-neighbor)"
                     table[dest][1] = new_metric
                     table[dest][2] = 0
                         
             else:
+                #if table[dest][0] == from_id:
                 if table[dest][0] == from_id:
                     table[dest][2] = max(table[dest][2], TIMEOUT)
                     
@@ -162,7 +168,7 @@ def update_table(pack): #Unpack packet and load entries to the table
                         table[dest][2] == GARBAGE
                     else:
                         table[dest][1] == INFINITY
-
+                        #trggered(from_id)
         else:
             if new_metric < INFINITY and dest not in neighbors:
                 table[dest] = [from_id, new_metric, 0, "newly created"]
@@ -170,7 +176,8 @@ def update_table(pack): #Unpack packet and load entries to the table
         
     pass
 
-def refresh_table(): 
+def refresh_table():  
+    #Refresh the table, keep track of timers of each entry
     to_remove = []
     start = time.time()
     time.sleep(random.uniform(0.8, 0.2))
@@ -198,9 +205,9 @@ def refresh_table():
 
 
 def recieve_msg(timeout): 
-
+    #Recieve paccket from other connected routers
     
-    def is_valid_pack(packet): 
+    def is_valid_pack(packet): #Check if packet recievedis valid
         ## the metric is not greater than 16
         for i in ["ver", "id", "data"]:
             if i not in packet:
@@ -212,19 +219,20 @@ def recieve_msg(timeout):
 
         
     readable,write,error = select.select(listen_list,[],[], timeout)
-    print("received packs:\n")
+    #if print_packs: print("received packs:\n")
     for recieved in readable:
         data, addr = recieved.recvfrom(1024)
         pack = pickle.loads(data)
         if is_valid_pack(pack):
             
-            print(pack)
+            #if print_packs: print(pack)
             update_table(pack)
-    print("=================================")
+    #if print_packs: print("=================================")
 
 
 
-def create_pack(dest_id, port, version): 
+def create_pack(dest_id, port, version):  
+    #create a packet to send out, split horizon, poison reverse
     pack = {}
     pack["ver"] = 2
     pack["id"] = struct.pack("H", router_id)
@@ -257,8 +265,7 @@ def create_pack(dest_id, port, version):
     #packet = pickle.dumps(pack, protocol=2)
     #sock.sendto(packet, (HOST, port))    
 
-def send_message(): 
-
+def send_message(): #send packet to neighbors
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
     for port in output_ports.keys():
@@ -267,7 +274,8 @@ def send_message():
         packet = pickle.dumps(pack, protocol=2)
         sock.sendto(packet, (HOST, port))
 
-def exchange_info():
+def exchange_info(): 
+    #Handling sending and receiving timers, regular update
     def regular_update():
         while 1:
             interval = random.uniform(UPDATE*0.8, UPDATE*0.2)
@@ -287,13 +295,18 @@ def exchange_info():
             freq = 0
         freq += 1
         
-
+        
+        
+        
 def main_program(file_name): 
+    #Handling the main logistics
     """the main RIPv2 program, logistics"""
     file_object=open(file_name, 'r')
     if not syntax_check(file_object):
         print("Invalid file supplied.")
         exit(1)
+    #global print_packs 
+    #print_packs = True if extension == 1 else False
     init_table()
     init_router()
     exchange_info()
@@ -302,4 +315,5 @@ if __name__ == "__main__":
     n_args = (len(sys.argv))
     #print(sys.argv)
     if n_args == 2: main_program(sys.argv[1])
+    #if n_args == 3: main_program(sys.argv[1], sys.argv[2])s
     else: print("Daemon takes exactly one configuration file.") 
