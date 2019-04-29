@@ -137,8 +137,7 @@ def update_table(pack): #Unpack packet and load entries to the table
     else:
         details = [from_id, pack["metric"], 0, "new neighbor"]
         table[from_id] = details
-        #neighbors.append(from_id)
-             
+
         
     for dest, distance in pack["data"].items():
         new_metric = min(distance + table[from_id][1], INFINITY)
@@ -156,7 +155,6 @@ def update_table(pack): #Unpack packet and load entries to the table
                     table[dest][2] = 0
                         
             else:
-                #if table[dest][0] == from_id:
                 if table[dest][0] == from_id:
                     table[dest][2] = max(table[dest][2], TIMEOUT)
                     
@@ -164,7 +162,7 @@ def update_table(pack): #Unpack packet and load entries to the table
                         table[dest][2] == GARBAGE
                     else:
                         table[dest][1] == INFINITY
-                        trggered(from_id)
+
         else:
             if new_metric < INFINITY and dest not in neighbors:
                 table[dest] = [from_id, new_metric, 0, "newly created"]
@@ -172,7 +170,7 @@ def update_table(pack): #Unpack packet and load entries to the table
         
     pass
 
-def refresh_table():  #Refresh the table, keep track of timers of each entry
+def refresh_table(): 
     to_remove = []
     start = time.time()
     time.sleep(random.uniform(0.8, 0.2))
@@ -195,14 +193,14 @@ def refresh_table():  #Refresh the table, keep track of timers of each entry
     
     for key in to_remove:
         table.pop(key)
-        #if key in neighbors:
-            #neighbors.remove(key)
+
+
 
 
 def recieve_msg(timeout): 
-    #Recieve paccket from other connected routers
+
     
-    def is_valid_pack(packet): #Check if packet recievedis valid
+    def is_valid_pack(packet): 
         ## the metric is not greater than 16
         for i in ["ver", "id", "data"]:
             if i not in packet:
@@ -226,7 +224,7 @@ def recieve_msg(timeout):
 
 
 
-def create_pack(dest_id, port, version):  #create a packet to send out, split horizon, poison reverse
+def create_pack(dest_id, port, version): 
     pack = {}
     pack["ver"] = 2
     pack["id"] = struct.pack("H", router_id)
@@ -243,26 +241,24 @@ def create_pack(dest_id, port, version):  #create a packet to send out, split ho
                 pack["data"][dest] = item[1]
     return pack
 
-def trggered(send_to):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    port = 0
-    for key, value in output_ports.items():
-        print(send_to, value[1])
-        if value[1] == send_to:
-            
-            port = key
-            print(port)
-    if port == 0:
-        print("WRONG PORT!", port,key, output_ports.items())
-        exit(1)
-    pack = create_pack(send_to, port, 2)
-    packet = pickle.dumps(pack, protocol=2)
-    sock.sendto(packet, (HOST, port))    
-
-def send_message(): #send packet to neighbors
-    
+#def trggered(send_to):
+    #sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #port = 0
+    #for key, value in output_ports.items():
+        ##print(send_to, value[1])
+        #if value[1] == send_to:
         
-    
+            #port = key
+            ##print(port)
+    #if port == 0:
+        #print("WRONG PORT!", port,key, output_ports.items())
+        #exit(1)
+    #pack = create_pack(send_to, port, 2)
+    #packet = pickle.dumps(pack, protocol=2)
+    #sock.sendto(packet, (HOST, port))    
+
+def send_message(): 
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     
     for port in output_ports.keys():
@@ -271,7 +267,7 @@ def send_message(): #send packet to neighbors
         packet = pickle.dumps(pack, protocol=2)
         sock.sendto(packet, (HOST, port))
 
-def exchange_info(): #Handling sending and receiving timers, regular update
+def exchange_info():
     def regular_update():
         while 1:
             interval = random.uniform(UPDATE*0.8, UPDATE*0.2)
@@ -281,15 +277,18 @@ def exchange_info(): #Handling sending and receiving timers, regular update
     threading.Thread(target = regular_update).start()
 
     global loop
+    freq = 0
     while 1:
         loop += 1
-        refresh_table()
-        show_table()
         recieve_msg(UPDATE)
+        refresh_table()
+        if freq % 4 == 0:
+            show_table()
+            freq = 0
+        freq += 1
         
-        
-        
-def main_program(file_name): #Handling the main logistics
+
+def main_program(file_name): 
     """the main RIPv2 program, logistics"""
     file_object=open(file_name, 'r')
     if not syntax_check(file_object):
